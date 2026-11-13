@@ -1,0 +1,706 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>푸들 스탑워치</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&family=Jua&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-deep: #160a2b;
+    --bg-mid: #2b1155;
+    --lilac: #c4b5fd;
+    --lavender: #e9ddff;
+    --pink: #f472d0;
+    --card: rgba(46, 22, 88, 0.82);
+    --glass-line: rgba(255, 255, 255, 0.16);
+    --text: #f6f0ff;
+    --muted: #b9a6e0;
+    --best: #7ef0c1;
+    --worst: #ff8db4;
+    /* 초코 푸들 색 */
+    --fur: #8a5536;
+    --fur-light: #a86d48;
+    --fur-dark: #643820;
+    --muzzle: #d6a47c;
+  }
+  * { box-sizing: border-box; }
+  html {
+    min-height: 100%;
+    background:
+      radial-gradient(60vmax 60vmax at 10% 0%, rgba(168, 85, 247, 0.45), transparent 60%),
+      radial-gradient(50vmax 50vmax at 100% 30%, rgba(244, 114, 208, 0.30), transparent 60%),
+      radial-gradient(70vmax 50vmax at 50% 110%, rgba(99, 102, 241, 0.35), transparent 60%),
+      linear-gradient(160deg, var(--bg-mid), var(--bg-deep));
+  }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--text);
+    font-family: "Jua", "Fredoka", system-ui, "Malgun Gothic", sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 40px 16px 56px;
+    overflow-x: hidden;
+  }
+
+  /* 반짝이 배경 */
+  .stars { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+  .star {
+    position: absolute; color: var(--lavender); opacity: 0;
+    animation: twinkle var(--dur) ease-in-out var(--delay) infinite;
+    text-shadow: 0 0 8px rgba(233, 221, 255, 0.9);
+  }
+  @keyframes twinkle {
+    0%, 100% { opacity: 0; transform: scale(.4) rotate(0deg); }
+    50% { opacity: .9; transform: scale(1) rotate(45deg); }
+  }
+
+  .card {
+    position: relative; z-index: 1;
+    width: 100%; max-width: 460px;
+    background: linear-gradient(160deg, rgba(70, 34, 130, 0.85), var(--card));
+    border: 1px solid var(--glass-line);
+    border-radius: 32px;
+    padding: 22px 22px 24px;
+    box-shadow: 0 30px 80px rgba(20, 4, 50, 0.55), inset 0 1px 0 rgba(255,255,255,.15);
+  }
+
+  .top { display: flex; justify-content: center; margin-bottom: 8px; }
+  .status {
+    font-size: 13px; padding: 6px 12px; border-radius: 999px;
+    background: rgba(255,255,255,.08); border: 1px solid var(--glass-line);
+    color: var(--muted); display: flex; align-items: center; gap: 6px;
+  }
+  .status::before {
+    content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--muted);
+  }
+  .status.running { color: var(--best); }
+  .status.running::before { background: var(--best); box-shadow: 0 0 10px var(--best); animation: blink 1s infinite; }
+  .status.paused { color: var(--pink); }
+  .status.paused::before { background: var(--pink); }
+  @keyframes blink { 50% { opacity: .3; } }
+
+  /* 시간 표시 */
+  .time {
+    font-family: "Fredoka", system-ui, sans-serif; font-weight: 500;
+    font-size: clamp(52px, 16vw, 76px);
+    text-align: center; line-height: 1; margin: 8px 0 18px;
+    color: #fff;
+    text-shadow: 0 0 18px rgba(196, 181, 253, 0.75), 0 0 42px rgba(244, 114, 208, 0.35);
+    white-space: nowrap;
+  }
+  .time .d { display: inline-block; width: .6em; text-align: center; }
+  .time .sep { display: inline-block; width: .3em; text-align: center; opacity: .8; }
+  .time .small { font-size: .55em; color: var(--lilac); }
+  .time .hours { display: none; }
+  .time.has-hours .hours { display: inline; }
+
+  /* 푸들 트랙 */
+  .track {
+    --range: 260px;
+    position: relative; height: 160px; border-radius: 22px; overflow: hidden;
+    background: linear-gradient(180deg, rgba(139, 92, 246, 0.18), rgba(244, 114, 208, 0.10));
+    border: 1px solid var(--glass-line);
+    margin-bottom: 22px;
+  }
+  .track::after { /* 바닥 */
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 26px;
+    background:
+      radial-gradient(circle at 10px 6px, rgba(233,221,255,.35) 2px, transparent 3px) 0 0 / 34px 26px,
+      linear-gradient(180deg, rgba(91, 33, 182, .55), rgba(59, 7, 100, .8));
+    border-top: 1px solid rgba(196, 181, 253, .35);
+  }
+  .moon {
+    position: absolute; top: 14px; right: 20px; width: 26px; height: 26px; border-radius: 50%;
+    box-shadow: -7px 4px 0 0 var(--lavender); transform: rotate(-20deg); opacity: .8;
+  }
+
+  /* 이동은 JS가 transform으로 처리 (체력에 따라 속도가 바뀜) */
+  .runner {
+    position: absolute; bottom: 12px; left: 4px; width: 130px; height: 125px; z-index: 2;
+    will-change: transform;
+  }
+  .flip { width: 100%; height: 100%; }
+
+  /* 체력 게이지 */
+  .energy {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; color: var(--lavender);
+    margin: 0 4px 10px;
+  }
+  .energy .bar {
+    flex: 1; height: 10px; border-radius: 99px; overflow: hidden;
+    background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.18);
+  }
+  .energy .fill {
+    height: 100%; width: 100%; border-radius: 99px;
+    background: linear-gradient(90deg, #7ef0c1, #a7f3a0);
+    transition: background .4s;
+  }
+  .energy.mid .fill { background: linear-gradient(90deg, #ffd56b, #ffb36b); }
+  .energy.low .fill { background: linear-gradient(90deg, #ff6b9a, #ff8db4); animation: blink .8s infinite; }
+  .energy .val { font-family: "Fredoka", sans-serif; min-width: 2.2em; color: var(--muted); }
+
+  /* 뼈다귀 간식 */
+  .bone {
+    position: absolute; width: 34px; height: 18px; top: 0; z-index: 4; pointer-events: none;
+    animation: boneDrop .55s cubic-bezier(.5, 0, .9, .6) forwards;
+  }
+  @keyframes boneDrop {
+    0%   { transform: translate(-50%, -70px) rotate(-200deg); opacity: 0; }
+    20%  { opacity: 1; }
+    85%  { transform: translate(-50%, 0) rotate(0deg); opacity: 1; }
+    100% { transform: translate(-50%, 2px) scale(.4); opacity: 0; }
+  }
+  .yum {
+    position: absolute; top: -6px; z-index: 5; pointer-events: none; white-space: nowrap;
+    font-size: 15px; color: #5b21b6; background: #fff; padding: 4px 11px; border-radius: 14px;
+    box-shadow: 0 6px 16px rgba(30, 5, 70, .35);
+    animation: yum 1.1s ease-out forwards;
+  }
+  .yum b { color: #db2777; font-family: "Fredoka", sans-serif; }
+  @keyframes yum {
+    0%   { transform: translate(-50%, 6px) scale(.6); opacity: 0; }
+    20%  { transform: translate(-50%, -4px) scale(1.1); opacity: 1; }
+    100% { transform: translate(-50%, -34px) scale(1); opacity: 0; }
+  }
+  .heart {
+    position: absolute; z-index: 5; pointer-events: none; color: #ff7cc8; font-size: 14px;
+    animation: heart 1s ease-out forwards;
+  }
+  @keyframes heart {
+    0%   { transform: translate(0, 0) scale(.5); opacity: 0; }
+    20%  { opacity: 1; }
+    100% { transform: translate(var(--dx), -40px) scale(1.1); opacity: 0; }
+  }
+  .track.eating .head { animation: chomp .14s ease-in-out 4 !important; }
+  @keyframes chomp { 0%,100% { transform: rotate(0); } 50% { transform: rotate(8deg) translateY(2px); } }
+
+  .poodle { width: 100%; height: 100%; overflow: visible; }
+  .poodle * { transform-box: fill-box; }
+  .poodle .leg { transform-origin: 50% 0%; }
+  .poodle .tail { transform-origin: 80% 100%; }
+  .poodle .ear { transform-origin: 50% 10%; }
+  .poodle .head { transform-origin: 40% 90%; }
+  .poodle .tongue { transform-origin: 50% 0%; opacity: 0; }
+  .poodle .eyes-happy { opacity: 0; }
+  .poodle .eyes-open { transform-origin: 50% 50%; }
+  .poodle .dust, .poodle .sweat { opacity: 0; }
+
+  /* 대기: 꼬리 살랑 + 가끔 눈 깜빡 */
+  .track.idle .tail { animation: wag 1.4s ease-in-out infinite; }
+  .track.idle .eyes-open { animation: blinkEyes 3.6s infinite; }
+  .track.idle .head { animation: tilt 3.6s ease-in-out infinite; }
+
+  /* 달리기 */
+  /* --pace: 한 걸음 시간. 지칠수록 길어짐 */
+  .track { --pace: .36s; }
+  .track.running .dog { animation: bob var(--pace) ease-in-out infinite; }
+  .track.running .leg.front { animation: swing var(--pace) ease-in-out infinite; }
+  .track.running .leg.back  { animation: swing var(--pace) ease-in-out calc(var(--pace) / -2) infinite; }
+  .track.running .ear  { animation: flap var(--pace) ease-in-out infinite; }
+  .track.running .ear.r { animation-delay: -.06s; }
+  .track.running .tail { animation: wag .22s ease-in-out infinite; }
+  .track.running .tongue { opacity: 1; animation: tongueFlap var(--pace) ease-in-out infinite; }
+  .track.running .dust { animation: puff calc(var(--pace) * 2) ease-out infinite; }
+  .track.running .dust.d2 { animation-delay: calc(var(--pace) * -1); }
+  /* 지친 상태로 달리기: 꼬리 축 처지고 땀 뻘뻘 */
+  .track.running.tired .tail { animation: wag .6s ease-in-out infinite; }
+  .track.running.tired .sweat { animation: drip 1s ease-in infinite; }
+  .track.running.tired .dust { animation: none; opacity: 0; }
+
+  /* 쉬는 중: 눈 감고 헥헥 */
+  .track.paused .eyes-open { opacity: 0; }
+  .track.paused .eyes-happy { opacity: 1; }
+  .track.paused .tongue { opacity: 1; animation: pantTongue .3s ease-in-out infinite; }
+  .track.paused .body { animation: breathe .3s ease-in-out infinite; transform-origin: 50% 100%; }
+  .track.paused .head { animation: pantHead .3s ease-in-out infinite; }
+  .track.paused .tail { animation: wag .6s ease-in-out infinite; }
+  .track.paused .sweat { animation: drip 1.4s ease-in infinite; }
+
+  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+  @keyframes swing { 0%,100% { transform: rotate(28deg); } 50% { transform: rotate(-28deg); } }
+  @keyframes flap { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(-22deg); } }
+  @keyframes wag { 0%,100% { transform: rotate(-14deg); } 50% { transform: rotate(14deg); } }
+  @keyframes tilt { 0%,60%,100% { transform: rotate(0); } 70%,90% { transform: rotate(-7deg); } }
+  @keyframes blinkEyes { 0%,92%,100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+  @keyframes tongueFlap { 0%,100% { transform: rotate(-6deg); } 50% { transform: rotate(10deg); } }
+  @keyframes pantTongue { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(1.3); } }
+  @keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.04, 1.07); } }
+  @keyframes pantHead { 0%,100% { transform: translateY(0); } 50% { transform: translateY(2px); } }
+  @keyframes puff {
+    0% { opacity: .7; transform: translate(0,0) scale(.4); }
+    100% { opacity: 0; transform: translate(-22px,-10px) scale(1.4); }
+  }
+  @keyframes drip {
+    0% { opacity: 0; transform: translateY(-4px); }
+    20% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(10px); }
+  }
+
+  .bubble {
+    position: absolute; left: 50%; top: -18px; transform: translateX(-50%);
+    background: #fff; color: #5b21b6; font-size: 15px; padding: 4px 11px;
+    border-radius: 14px; white-space: nowrap; opacity: 0; pointer-events: none;
+    box-shadow: 0 6px 16px rgba(30, 5, 70, .35);
+  }
+  .bubble::after {
+    content: ""; position: absolute; left: 50%; bottom: -6px; margin-left: -6px;
+    border: 6px solid transparent; border-top-color: #fff; border-bottom: 0;
+  }
+  .track.paused .bubble.pant { opacity: 1; animation: hop .6s ease-in-out infinite; }
+  .track.idle .bubble.ready { opacity: 1; }
+  .track.running.tired .bubble.tired { opacity: 1; animation: hop 1s ease-in-out infinite; }
+  .track.eating .bubble { opacity: 0 !important; }
+  @keyframes hop { 0%,100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -4px); } }
+
+  /* 버튼 */
+  .buttons {
+    display: grid; grid-template-columns: 1fr 1.35fr 1fr; gap: 12px; align-items: center;
+  }
+  button {
+    font-family: inherit; font-size: 17px; color: var(--text);
+    border: 1px solid var(--glass-line); border-radius: 20px; height: 60px;
+    background: rgba(255,255,255,.08); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: transform .08s, background .2s, opacity .2s;
+  }
+  button svg { width: 18px; height: 18px; }
+  button:hover:not(:disabled) { background: rgba(255,255,255,.14); }
+  button:active:not(:disabled) { transform: scale(.95); }
+  button:disabled { opacity: .35; cursor: default; }
+  button:focus-visible { outline: 2px solid var(--lilac); outline-offset: 3px; }
+
+  #start {
+    height: 72px; font-size: 20px; border: 0; color: #fff;
+    background: linear-gradient(135deg, #a855f7, #ec4899);
+    box-shadow: 0 10px 30px rgba(236, 72, 153, .45), inset 0 1px 0 rgba(255,255,255,.35);
+  }
+  #start:hover { background: linear-gradient(135deg, #b46cff, #f45fae); }
+  #start.running {
+    background: linear-gradient(135deg, #6d28d9, #4338ca);
+    box-shadow: 0 10px 30px rgba(99, 102, 241, .5), inset 0 1px 0 rgba(255,255,255,.25);
+  }
+
+  /* 랩 목록 */
+  .laps { margin-top: 22px; }
+  .laps-head, .lap {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 10px 6px;
+  }
+  .laps-head { font-size: 13px; color: var(--muted); border-bottom: 1px solid var(--glass-line); }
+  .laps-head span:not(:first-child), .lap span:not(:first-child) { text-align: right; }
+  ul { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow-y: auto; }
+  .lap {
+    font-family: "Fredoka", system-ui, sans-serif; font-variant-numeric: tabular-nums;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+    animation: slideIn .25s ease-out;
+  }
+  .lap .no { font-family: "Jua", sans-serif; color: var(--lilac); }
+  .lap .total { color: var(--muted); }
+  .lap.best .split { color: var(--best); }
+  .lap.worst .split { color: var(--worst); }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(-6px); } }
+  .empty { text-align: center; color: var(--muted); font-size: 14px; padding: 18px 0 4px; }
+
+  .hint { text-align: center; color: var(--muted); font-size: 12.5px; margin-top: 16px; opacity: .8; }
+  kbd {
+    font-family: "Fredoka", sans-serif; font-size: 11px; padding: 1px 6px; border-radius: 6px;
+    background: rgba(255,255,255,.1); border: 1px solid var(--glass-line);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .star { animation: none; opacity: .5; }
+  }
+</style>
+</head>
+<body>
+  <div class="stars" id="stars" aria-hidden="true"></div>
+
+  <main class="card">
+    <div class="top"><span class="status" id="status">준비</span></div>
+
+    <div class="time" id="display" role="timer">
+      <span class="hours"><span class="d" id="h">0</span><span class="sep">:</span></span><span class="d" id="m1">0</span><span class="d" id="m2">0</span><span class="sep">:</span><span class="d" id="s1">0</span><span class="d" id="s2">0</span><span class="small"><span class="sep">.</span><span class="d" id="c1">0</span><span class="d" id="c2">0</span></span>
+    </div>
+
+    <div class="energy" id="energy">
+      <span>🐾 체력</span>
+      <div class="bar"><div class="fill" id="energyFill"></div></div>
+      <span class="val" id="energyVal">100</span>
+    </div>
+    <div class="track idle" id="track" aria-hidden="true">
+      <div class="moon"></div>
+      <div class="runner" id="runner">
+        <div class="bubble ready">같이 뛸까? ♡</div>
+        <div class="bubble pant">헥헥…</div>
+        <div class="bubble tired">힘들어… 간식 줘 🦴</div>
+        <div class="flip" id="flip">
+          <svg class="poodle" viewBox="0 0 200 190">
+            <defs>
+              <radialGradient id="furShade" cx="40%" cy="30%" r="75%">
+                <stop offset="0%" stop-color="var(--fur-light)"/>
+                <stop offset="100%" stop-color="var(--fur)"/>
+              </radialGradient>
+            </defs>
+
+            <ellipse cx="102" cy="182" rx="52" ry="5" fill="rgba(20,0,50,.35)"/>
+            <circle class="dust" cx="50" cy="170" r="8" fill="rgba(233,221,255,.7)"/>
+            <circle class="dust d2" cx="62" cy="175" r="6" fill="rgba(233,221,255,.6)"/>
+
+            <g class="dog">
+              <!-- 꼬리 (동글 폼폼) -->
+              <g class="tail">
+                <path d="M62 128 Q50 118 48 104" stroke="var(--fur)" stroke-width="6" fill="none" stroke-linecap="round"/>
+                <g fill="url(#furShade)">
+                  <circle cx="47" cy="98" r="11"/><circle cx="39" cy="102" r="7"/>
+                  <circle cx="54" cy="92" r="7"/><circle cx="42" cy="91" r="7"/>
+                </g>
+              </g>
+
+              <!-- 뒤쪽(먼) 다리 -->
+              <g class="leg back far">
+                <rect x="66" y="138" width="11" height="24" rx="5.5" fill="var(--fur-dark)"/>
+                <circle cx="71.5" cy="166" r="8.5" fill="var(--fur-dark)"/>
+              </g>
+              <g class="leg front far">
+                <rect x="112" y="138" width="11" height="24" rx="5.5" fill="var(--fur-dark)"/>
+                <circle cx="117.5" cy="166" r="8.5" fill="var(--fur-dark)"/>
+              </g>
+
+              <!-- 몽실몽실 몸통 -->
+              <g class="body" fill="url(#furShade)">
+                <circle cx="70" cy="128" r="18"/>
+                <circle cx="88" cy="120" r="19"/>
+                <circle cx="108" cy="122" r="19"/>
+                <circle cx="122" cy="132" r="15"/>
+                <circle cx="80" cy="140" r="15"/>
+                <circle cx="104" cy="140" r="15"/>
+              </g>
+
+              <!-- 앞쪽(가까운) 다리 -->
+              <g class="leg back">
+                <rect x="78" y="140" width="12" height="24" rx="6" fill="var(--fur)"/>
+                <circle cx="84" cy="167" r="9.5" fill="var(--fur-light)"/>
+              </g>
+              <g class="leg front">
+                <rect x="124" y="140" width="12" height="24" rx="6" fill="var(--fur)"/>
+                <circle cx="130" cy="167" r="9.5" fill="var(--fur-light)"/>
+              </g>
+
+              <!-- 큰 머리 -->
+              <g class="head">
+                <!-- 뒤쪽 귀 -->
+                <g class="ear l" fill="var(--fur-dark)">
+                  <circle cx="113" cy="76" r="11"/><circle cx="110" cy="89" r="11"/>
+                  <circle cx="113" cy="101" r="10"/><circle cx="108" cy="108" r="7"/>
+                </g>
+
+                <!-- 얼굴 -->
+                <circle cx="141" cy="78" r="30" fill="url(#furShade)"/>
+                <!-- 머리 위 곱슬 -->
+                <g fill="var(--fur-light)">
+                  <circle cx="124" cy="54" r="13"/><circle cx="140" cy="46" r="15"/>
+                  <circle cx="157" cy="53" r="13"/><circle cx="131" cy="40" r="9"/>
+                  <circle cx="150" cy="39" r="9"/>
+                </g>
+                <!-- 리본 -->
+                <g transform="translate(160 40) rotate(18)">
+                  <path d="M0 0 L-11 -7 Q-14 0 -11 7 Z" fill="#ff7cc8"/>
+                  <path d="M0 0 L11 -7 Q14 0 11 7 Z" fill="#ff7cc8"/>
+                  <circle r="3.6" fill="#ff4fae"/>
+                </g>
+
+                <!-- 볼터치 -->
+                <ellipse cx="121" cy="90" rx="6" ry="3.6" fill="#ff8fc0" opacity=".6"/>
+                <ellipse cx="163" cy="90" rx="6" ry="3.6" fill="#ff8fc0" opacity=".6"/>
+
+                <!-- 눈 (뜬 눈) -->
+                <g class="eyes-open">
+                  <ellipse cx="129" cy="78" rx="6" ry="7" fill="#1d0f08"/>
+                  <ellipse cx="155" cy="78" rx="6" ry="7" fill="#1d0f08"/>
+                  <circle cx="131.2" cy="75.2" r="2.4" fill="#fff"/>
+                  <circle cx="157.2" cy="75.2" r="2.4" fill="#fff"/>
+                  <circle cx="127.5" cy="81" r="1.1" fill="#fff"/>
+                  <circle cx="153.5" cy="81" r="1.1" fill="#fff"/>
+                </g>
+                <!-- 눈 (웃는 눈 ^ ^) -->
+                <g class="eyes-happy" stroke="#1d0f08" stroke-width="3" fill="none" stroke-linecap="round">
+                  <path d="M123 80 Q129 72 135 80"/>
+                  <path d="M149 80 Q155 72 161 80"/>
+                </g>
+
+                <!-- 주둥이 -->
+                <path class="tongue" d="M137 96 Q136 108 142 109 Q148 108 147 96 Z" fill="#ff7aa8"/>
+                <ellipse cx="142" cy="93" rx="13" ry="9.5" fill="var(--muzzle)"/>
+                <ellipse cx="142" cy="88.5" rx="4.8" ry="3.4" fill="#2a140b"/>
+                <ellipse cx="140.6" cy="87.6" rx="1.4" ry=".9" fill="#fff" opacity=".7"/>
+                <path d="M136 94 Q139 98 142 94.5 Q145 98 148 94" stroke="#3a1d0f" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+
+                <!-- 앞쪽 귀 -->
+                <g class="ear r" fill="var(--fur-dark)">
+                  <circle cx="168" cy="76" r="10"/><circle cx="171" cy="88" r="10"/>
+                  <circle cx="169" cy="99" r="9"/><circle cx="173" cy="106" r="6.5"/>
+                </g>
+
+                <!-- 땀방울 -->
+                <path class="sweat" d="M118 58 Q114 65 118 68 Q122 65 118 58 Z" fill="#9fd8ff"/>
+              </g>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="buttons">
+      <button id="lap" disabled aria-label="랩">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></svg>
+        랩
+      </button>
+      <button id="start" aria-label="시작">
+        <svg id="startIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>
+        <span id="startLabel">시작</span>
+      </button>
+      <button id="reset" disabled aria-label="리셋">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+        리셋
+      </button>
+    </div>
+
+    <section class="laps">
+      <div class="laps-head"><span>랩</span><span>구간</span><span>누적</span></div>
+      <ul id="laps"></ul>
+      <div class="empty" id="empty">랩 기록이 여기에 쌓여요 🐾</div>
+    </section>
+
+    <div class="hint"><kbd>Space</kbd> 시작/정지 · <kbd>L</kbd> 랩 · <kbd>R</kbd> 리셋</div>
+  </main>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const display = $('display'), track = $('track'), statusEl = $('status');
+  const startBtn = $('start'), lapBtn = $('lap'), resetBtn = $('reset');
+  const startIcon = $('startIcon'), startLabel = $('startLabel');
+  const lapsEl = $('laps'), emptyEl = $('empty');
+  const digitEls = ['h', 'm1', 'm2', 's1', 's2', 'c1', 'c2'].map($);
+
+  const PLAY = '<path d="M7 4.5v15l13-7.5z"/>';
+  const PAUSE = '<rect x="6" y="4.5" width="4.2" height="15" rx="1.2"/><rect x="13.8" y="4.5" width="4.2" height="15" rx="1.2"/>';
+
+  let running = false, startTime = 0, elapsed = 0;
+  let laps = [], lastLapTotal = 0;
+
+  // 푸들 체력과 위치
+  const runner = $('runner'), flip = $('flip');
+  const energyEl = $('energy'), energyFill = $('energyFill'), energyVal = $('energyVal');
+  const DOG_W = 138;        // 푸들 영역 폭(px)
+  const BASE_SPEED = 95;    // 체력 100일 때 속도(px/초)
+  const DRAIN = 1.6;        // 달리는 동안 초당 체력 감소 (약 1분이면 지침)
+  const RECOVER = 6;        // 쉬는 동안 초당 체력 회복
+  const TREAT = 30;         // 뼈다귀 하나당 회복량
+  let energy = 100, dogX = 0, dogDir = 1, range = 260;
+  let lastFrame = performance.now(), shownPace = '', shownEnergy = -1, eatTimer = null;
+
+  const pad = n => String(n).padStart(2, '0');
+  function parts(ms) {
+    return {
+      h: Math.floor(ms / 3600000),
+      m: Math.floor(ms / 60000) % 60,
+      s: Math.floor(ms / 1000) % 60,
+      cs: Math.floor(ms / 10) % 100,
+    };
+  }
+  function text(ms) {
+    const p = parts(ms);
+    return (p.h ? p.h + ':' : '') + pad(p.m) + ':' + pad(p.s) + '.' + pad(p.cs);
+  }
+
+  const now = () => running ? elapsed + (performance.now() - startTime) : elapsed;
+
+  // 바뀐 숫자만 갈아끼워서 매 프레임 DOM을 다시 만들지 않음
+  let lastShown = [];
+  function render() {
+    const p = parts(now());
+    const chars = [String(p.h), ...pad(p.m), ...pad(p.s), ...pad(p.cs)];
+    chars.forEach((c, i) => {
+      if (lastShown[i] !== c) { digitEls[i].textContent = c; lastShown[i] = c; }
+    });
+    display.classList.toggle('has-hours', p.h > 0);
+  }
+  function placeDog() {
+    runner.style.transform = 'translateX(' + dogX.toFixed(1) + 'px)';
+    flip.style.transform = 'scaleX(' + dogDir + ')';
+  }
+
+  function updateEnergy() {
+    const v = Math.round(energy);
+    if (v === shownEnergy) return;
+    shownEnergy = v;
+    energyFill.style.width = v + '%';
+    energyVal.textContent = v;
+    energyEl.classList.toggle('mid', v < 60 && v >= 30);
+    energyEl.classList.toggle('low', v < 30);
+    track.classList.toggle('tired', v < 30);
+  }
+
+  // 한 루프에서 시간 표시, 체력, 푸들 이동을 모두 처리
+  function loop(t) {
+    const dt = Math.min(0.1, (t - lastFrame) / 1000);
+    lastFrame = t;
+    if (running) {
+      energy = Math.max(0, energy - DRAIN * dt);
+      const factor = 0.3 + 0.7 * (energy / 100);   // 체력 0이면 원래 속도의 30%
+      dogX += dogDir * BASE_SPEED * factor * dt;
+      if (dogX >= range) { dogX = range; dogDir = -1; }
+      else if (dogX <= 0) { dogX = 0; dogDir = 1; }
+      placeDog();
+      // 걸음 속도도 같이 느려짐 (자주 바꾸면 다리가 튀어서 단계별로)
+      const pace = (Math.round(0.36 / factor / 0.04) * 0.04).toFixed(2);
+      if (pace !== shownPace) { track.style.setProperty('--pace', pace + 's'); shownPace = pace; }
+      render();
+    } else {
+      energy = Math.min(100, energy + RECOVER * dt);
+    }
+    updateEnergy();
+    requestAnimationFrame(loop);
+  }
+
+  const BONE_SVG =
+    '<svg viewBox="0 0 34 18">' +
+    '<g fill="#fff4dc" stroke="#c99a62" stroke-width="2.4"><circle cx="6" cy="5" r="4.5"/><circle cx="6" cy="13" r="4.5"/><circle cx="28" cy="5" r="4.5"/><circle cx="28" cy="13" r="4.5"/><rect x="6" y="4.5" width="22" height="9" rx="2"/></g>' +
+    '<g fill="#fff4dc"><circle cx="6" cy="5" r="4.5"/><circle cx="6" cy="13" r="4.5"/><circle cx="28" cy="5" r="4.5"/><circle cx="28" cy="13" r="4.5"/><rect x="6" y="4.5" width="22" height="9" rx="2"/></g>' +
+    '</svg>';
+
+  function spawn(cls, html, style) {
+    const el = document.createElement('div');
+    el.className = cls;
+    el.innerHTML = html;
+    Object.assign(el.style, style);
+    runner.appendChild(el);
+    el.addEventListener('animationend', () => el.remove());
+    return el;
+  }
+
+  function giveTreat() {
+    // 푸들 입 위치(바라보는 방향 쪽)로 뼈다귀가 떨어짐
+    const mouth = dogDir === 1 ? '71%' : '29%';
+    spawn('bone', BONE_SVG, { left: mouth, top: '40%' });
+    setTimeout(() => {
+      energy = Math.min(100, energy + TREAT);
+      track.classList.add('eating');
+      clearTimeout(eatTimer);
+      eatTimer = setTimeout(() => track.classList.remove('eating'), 600);
+      spawn('yum', '냠냠! <b>+' + TREAT + '</b>', { left: '50%' });
+      for (let i = 0; i < 3; i++) {
+        const h = spawn('heart', '♥', { left: mouth, top: '30%', animationDelay: i * 0.12 + 's' });
+        h.style.setProperty('--dx', (i - 1) * 16 + 'px');
+      }
+    }, 470);
+  }
+
+  function setState() {
+    const state = running ? 'running' : (elapsed > 0 ? 'paused' : 'idle');
+    track.classList.remove('idle', 'running', 'paused');
+    track.classList.add(state);
+    statusEl.className = 'status ' + state;
+    statusEl.textContent = { idle: '준비', running: '달리는 중', paused: '쉬는 중' }[state];
+    startBtn.classList.toggle('running', running);
+    startLabel.textContent = running ? '정지' : (elapsed > 0 ? '계속' : '시작');
+    startBtn.setAttribute('aria-label', startLabel.textContent);
+    startIcon.innerHTML = running ? PAUSE : PLAY;
+    lapBtn.disabled = !running;
+    resetBtn.disabled = !running && elapsed === 0;
+  }
+
+  function toggle() {
+    if (running) {
+      elapsed += performance.now() - startTime;
+      running = false;
+      render();
+    } else {
+      startTime = performance.now();
+      running = true;
+    }
+    setState();
+  }
+
+  function lap() {
+    if (!running) return;
+    const total = now();
+    laps.unshift({ split: total - lastLapTotal, total });
+    lastLapTotal = total;
+    renderLaps();
+    giveTreat();
+  }
+
+  function reset() {
+    running = false;
+    elapsed = 0; laps = []; lastLapTotal = 0;
+    // 푸들을 출발점으로, 체력은 가득
+    energy = 100; dogX = 0; dogDir = 1;
+    placeDog();
+    render(); renderLaps(); setState();
+  }
+
+  function renderLaps() {
+    lapsEl.innerHTML = '';
+    emptyEl.style.display = laps.length ? 'none' : '';
+    const splits = laps.map(l => l.split);
+    const min = Math.min(...splits), max = Math.max(...splits);
+    laps.forEach((l, i) => {
+      const li = document.createElement('li');
+      li.className = 'lap';
+      if (laps.length > 2 && l.split === min) li.classList.add('best');
+      if (laps.length > 2 && l.split === max) li.classList.add('worst');
+      li.innerHTML =
+        '<span class="no">🦴 랩 ' + (laps.length - i) + '</span>' +
+        '<span class="split">' + text(l.split) + '</span>' +
+        '<span class="total">' + text(l.total) + '</span>';
+      lapsEl.appendChild(li);
+    });
+  }
+
+  // 트랙 폭에 맞춰 푸들이 뛰는 거리 계산
+  function measureRange() {
+    range = Math.max(0, track.clientWidth - DOG_W);
+    dogX = Math.min(dogX, range);
+    placeDog();
+  }
+  window.addEventListener('resize', measureRange);
+
+  startBtn.addEventListener('click', toggle);
+  lapBtn.addEventListener('click', lap);
+  resetBtn.addEventListener('click', reset);
+
+  document.addEventListener('keydown', e => {
+    if (e.repeat) return;
+    if (e.code === 'Space') { e.preventDefault(); toggle(); }
+    else if (e.code === 'KeyL') lap();
+    else if (e.code === 'KeyR') reset();
+  });
+  // 버튼에 포커스가 있을 때 Space가 클릭으로 한 번 더 눌리는 것을 막음
+  document.addEventListener('keyup', e => {
+    if (e.code === 'Space' && e.target.tagName === 'BUTTON') e.preventDefault();
+  });
+
+  // 반짝이 생성
+  const stars = $('stars');
+  for (let i = 0; i < 24; i++) {
+    const s = document.createElement('span');
+    s.className = 'star';
+    s.textContent = Math.random() < .5 ? '✦' : '·';
+    s.style.left = Math.random() * 100 + '%';
+    s.style.top = Math.random() * 100 + '%';
+    s.style.fontSize = (8 + Math.random() * 14) + 'px';
+    s.style.setProperty('--dur', (2.5 + Math.random() * 3) + 's');
+    s.style.setProperty('--delay', (-Math.random() * 5) + 's');
+    stars.appendChild(s);
+  }
+
+  measureRange(); render(); setState(); renderLaps();
+  requestAnimationFrame(loop);
+</script>
+</body>
+</html>
